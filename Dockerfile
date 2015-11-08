@@ -1,5 +1,5 @@
 FROM ubuntu:14.04
-MAINTAINER Eugene Ware <eugene@noblesamurai.com>
+MAINTAINER Ali Naghavi <naghavi.ali@gmail.com>
 
 # Keep upstart from complaining
 RUN dpkg-divert --local --rename --add /sbin/initctl
@@ -41,23 +41,84 @@ RUN /usr/bin/easy_install supervisor
 RUN /usr/bin/easy_install supervisor-stdout
 ADD ./supervisord.conf /etc/supervisord.conf
 
-# Install Wordpress
-ADD https://wordpress.org/latest.tar.gz /usr/share/nginx/latest.tar.gz
-RUN cd /usr/share/nginx/ && tar xvf latest.tar.gz && rm latest.tar.gz
-RUN mv /usr/share/nginx/html/5* /usr/share/nginx/wordpress
-RUN rm -rf /usr/share/nginx/www
-RUN mv /usr/share/nginx/wordpress /usr/share/nginx/www
-RUN chown -R www-data:www-data /usr/share/nginx/www
+# Download Wordpress
+# RUN curl -v -L -o /usr/src/latest-fa_IR.zip -O http://fa.wordpress.org/latest-fa_IR.zip
+  ADD ./files/wp.zip /usr/src/
+
+# Add Avada theme
+  ADD ./files/Avada.zip /usr/src/
+
+# Download plugins
+  RUN curl -o /usr/src/nginx-helper.zip -O `curl -i -s https://wordpress.org/plugins/nginx-helper/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/wordfence.zip -O `curl -i -s https://wordpress.org/plugins/wordfence/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/wordpress-seo.zip -O `curl -i -s https://wordpress.org/plugins/wordpress-seo/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/google-captcha.zip -O `curl -i -s https://wordpress.org/plugins/google-captcha/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/google-analytics-for-wordpress.zip -O `curl -i -s https://wordpress.org/plugins/google-analytics-for-wordpress/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/duplicate-post.zip -O `curl -i -s https://wordpress.org/plugins/duplicate-post/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/user-role-editor.zip -O `curl -i -s https://wordpress.org/plugins/user-role-editor/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/adminimize.zip -O `curl -i -s https://wordpress.org/plugins/adminimize/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/loco-translate.zip -O `curl -i -s https://wordpress.org/plugins/loco-translate/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/stops-core-theme-and-plugin-updates.zip -O `curl -i -s https://wordpress.org/plugins/stops-core-theme-and-plugin-updates/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/wp-smushit.zip -O `curl -i -s https://wordpress.org/plugins/wp-smushit/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/all-in-one-wp-security-and-firewall.zip -O `curl -i -s https://wordpress.org/plugins/all-in-one-wp-security-and-firewall/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/underconstruction.zip -O `curl -i -s https://wordpress.org/plugins/underconstruction/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/w3-total-cache.zip -O `curl -i -s https://wordpress.org/plugins/w3-total-cache/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  RUN curl -o /usr/src/contact-form-7.zip -O `curl -i -s https://wordpress.org/plugins/contact-form-7/ | egrep -o "https://downloads.wordpress.org/plugin/[^']+"`
+
+  ADD ./files/legacy-admin.zip /usr/src/
+
+  ADD ./files/LayerSlider.zip /usr/src/
+
+  ADD ./files/fusion-core.zip /usr/src/
+
+  ADD ./files/revslider.zip /usr/src/
+
+  ADD ./files/fonts.zip /usr/src/
+
+# Add css file for customizing admin panel(for all users)
+  ADD ./files/admin_panel_base.css /usr/src/
+
+# Add css file for customizing admin panel(for admin-user role)
+  ADD ./files/admin_panel_user.css /usr/src/
+
+# Remove 404 php file and add new 404.php file
+  ADD ./files/404.php /usr/src/
 
 # Wordpress Initialization and Startup Script
 ADD ./start.sh /start.sh
 RUN chmod 755 /start.sh
 
+# Install SSH
+RUN apt-get update
+RUN apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:Sana11811' | chpasswd
+RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+
 # private expose
-EXPOSE 3306
-EXPOSE 80
+EXPOSE 80 22 3306
 
 # volume for mysql database and wordpress install
-VOLUME ["/var/lib/mysql", "/usr/share/nginx/www"]
+VOLUME ["/usr/share/nginx/www"]
 
 CMD ["/bin/bash", "/start.sh"]
